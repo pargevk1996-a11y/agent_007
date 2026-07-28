@@ -63,3 +63,134 @@ build-backend = "hatchling.build"
 # explicitly rather than left to guess.
 [tool.hatch.build.targets.wheel]
 packages = ["researchmind"]
+
+
+# --------------------------------------------------------------------------------------
+# ruff
+# --------------------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F",      # pycodestyle, pyflakes
+  "I",                # import sorting
+  "N",                # pep8 naming
+  "UP",               # pyupgrade: no legacy typing syntax
+  "D",                # docstrings: every module states its role
+  "ANN",              # every signature is annotated, including against bare Any
+  "ASYNC",            # blocking calls inside async functions
+  "S",                # bandit
+  "B", "A", "C4", "SIM", "RUF",
+  "DTZ",              # no naive datetimes: every timestamp is tz-aware
+  "T20",              # no print: logging is structured
+  "PT",               # pytest style
+  "TID",              # tidy imports
+  "ARG",              # unused arguments
+  "PL",               # pylint subset
+]
+ignore = [
+  "D203",  # conflicts with D211 (no blank line before class docstring)
+  "D213",  # conflicts with D212 (summary on the first line)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert, and their fixtures do not need prose.
+"tests/**" = ["S101", "PLR2004", "D100", "D103"]
+
+
+# --------------------------------------------------------------------------------------
+# mypy
+# --------------------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+disallow_any_explicit = true
+disallow_any_unimported = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_typed = true
+warn_required_dynamic_aliases = true
+
+
+# --------------------------------------------------------------------------------------
+# import-linter: the dependency layering described in README.md, made enforceable
+# --------------------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "researchmind"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Dependencies point downward only"
+type = "layers"
+layers = [
+  "researchmind.api : researchmind.worker",
+  "researchmind.planner : researchmind.executor : researchmind.critic : researchmind.synthesizer",
+  "researchmind.memory : researchmind.tools",
+  "researchmind.providers : researchmind.budget",
+  "researchmind.events",
+  "researchmind.storage",
+  "researchmind.core",
+]
+
+[[tool.importlinter.contracts]]
+name = "Vendor SDKs are confined to providers"
+type = "forbidden"
+source_modules = [
+  "researchmind.core", "researchmind.budget", "researchmind.tools",
+  "researchmind.memory", "researchmind.planner", "researchmind.executor",
+  "researchmind.critic", "researchmind.synthesizer", "researchmind.storage",
+  "researchmind.events", "researchmind.obs", "researchmind.config",
+  "researchmind.api", "researchmind.worker", "researchmind.sdk",
+]
+forbidden_modules = ["anthropic", "openai", "instructor"]
+
+[[tool.importlinter.contracts]]
+name = "Database access is confined to storage"
+source_modules = [
+  "researchmind.core", "researchmind.providers", "researchmind.budget",
+  "researchmind.tools", "researchmind.memory", "researchmind.planner",
+  "researchmind.executor", "researchmind.critic", "researchmind.synthesizer",
+  "researchmind.obs", "researchmind.config", "researchmind.sdk",
+]
+type = "forbidden"
+forbidden_modules = ["asyncpg"]
+
+[[tool.importlinter.contracts]]
+name = "core is the foundation and imports nothing of ours"
+type = "forbidden"
+source_modules = ["researchmind.core"]
+forbidden_modules = ["researchmind.config", "researchmind.obs"]
+
+[[tool.importlinter.contracts]]
+name = "Cross-cutting packages stay cross-cutting"
+type = "forbidden"
+source_modules = ["researchmind.config", "researchmind.obs"]
+forbidden_modules = [
+  "researchmind.providers", "researchmind.budget", "researchmind.tools",
+  "researchmind.memory", "researchmind.planner", "researchmind.executor",
+  "researchmind.critic", "researchmind.synthesizer", "researchmind.storage",
+  "researchmind.events", "researchmind.api", "researchmind.worker",
+]
+
+
+# --------------------------------------------------------------------------------------
+# pytest
+# --------------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q --strict-markers --strict-config"
+markers = [
+  "integration: needs real services, started through testcontainers",
+  "e2e: replays recorded LLM and tool cassettes end to end",
+]

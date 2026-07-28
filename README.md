@@ -73,9 +73,15 @@ flowchart TB
     L0 -.-> L5
 ```
 
-Dependencies point downward only. `core` imports nothing from inside the project;
-`storage` owns every transaction; vendor SDKs exist in `providers` and nowhere else.
-These rules are checked in CI, not left to good intentions.
+Dependencies point downward only. These rules are executable — `make arch` runs them as
+`import-linter` contracts, so a violation fails the build rather than surviving review:
+
+- **Dependencies point downward only** — no upward or sideways imports between layers
+- **Vendor SDKs are confined to `providers`** — nothing else may import `anthropic`,
+  `openai` or `instructor`
+- **Database access is confined to `storage`** — nothing else may import `asyncpg`
+- **`core` imports nothing of ours** — not even `config` or `obs`
+- **Cross-cutting stays cross-cutting** — `config` and `obs` may not reach into the agent
 
 | Package | Role |
 | --- | --- |
@@ -145,6 +151,7 @@ something to run.
 | --- | --- |
 | 1.1 | Package tree with boundary docstrings, root configuration files, this README |
 | 1.2 | `pyproject.toml` with exact pins, `uv.lock` (98 packages), `Makefile`, `.gitattributes` |
+| 1.3 | `ruff` / `mypy --strict` / `import-linter` / `pytest` configuration, first tests |
 
 ---
 
@@ -153,13 +160,15 @@ something to run.
 Requires **Python 3.12**, **[uv](https://docs.astral.sh/uv/)** and **Docker**.
 
 ```bash
-make install   # uv sync --all-groups                    ✅ works
-make lint      # ruff check + format check               ✅ works
-make types     # mypy --strict                           ✅ works
-make arch      # import-linter: dependency layering      ⏳ needs its config (1.3)
-make test      # unit tests                              ⏳ needs a first test (1.3)
-make check     # all of the above
+make install   # uv sync --all-groups
+make lint      # ruff check + ruff format --check
+make types     # mypy --strict over researchmind and tests
+make arch      # import-linter: the layering above, enforced
+make test      # unit tests
+make check     # lint + types + arch + test
 ```
+
+`make check` is green.
 
 Dependency versions are pinned exactly in `pyproject.toml` and resolved in `uv.lock`.
 Both are committed: an upgrade is an explicit edit reviewed as a lock diff, never a

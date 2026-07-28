@@ -18,7 +18,7 @@ fmt:
 	uv run ruff check --fix .
 
 types:
-	uv run mypy researchmind
+	uv run mypy researchmind tests
 
 arch:
 	uv run lint-imports
