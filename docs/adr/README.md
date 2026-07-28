@@ -19,5 +19,6 @@ that would prove the decision wrong, it was a preference rather than a decision.
 | [0008](0008-sse-with-postgres-backfill.md) | Progress streams over SSE, backfilled from PostgreSQL, with Redis carrying only the hot tail | phase 14 |
 | [0009](0009-uuidv7-identifiers.md) | Identifiers are UUIDv7 generated in the application | phase 2 |
 | [0010](0010-prompts-as-versioned-files-with-snapshots.md) | Prompts are versioned files, and the rendered text is snapshotted with every call | phase 7 onward |
+| [0011](0011-modular-monolith-with-enforced-layering.md) | A modular monolith, with its layering enforced by contracts rather than by convention | phase 1 |
 
 New records start from [0000-template.md](0000-template.md).

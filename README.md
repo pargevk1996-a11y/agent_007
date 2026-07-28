@@ -155,6 +155,7 @@ something to run.
 | 1.4 | `docker-compose.yml` for PostgreSQL, Qdrant and Redis; `.env.example`; compose targets |
 | 1.5 | GitHub Actions workflow running the same `make` targets developers run |
 | 1.6 | Ten architecture decision records in [`docs/adr/`](docs/adr/) |
+| 1.7 | ADR-0011: the modular monolith and the layering its contracts enforce |
 
 Phase 1 is complete. Phase 2 — the domain types in `core/` — is next.
 
