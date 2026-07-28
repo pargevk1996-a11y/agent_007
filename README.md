@@ -123,7 +123,7 @@ not what is intended.
 
 | Phase | Scope | State |
 | --- | --- | --- |
-| 1 | Repository skeleton, tooling, CI, dev compose | in progress |
+| 1 | Repository skeleton, tooling, CI, dev compose | **done** |
 | 2 | Domain types with property-based tests | — |
 | 3 | Provider interface, cost accounting, structured output | — |
 | 4 | Budget enforcer, three scopes | — |
@@ -154,6 +154,9 @@ something to run.
 | 1.3 | `ruff` / `mypy --strict` / `import-linter` / `pytest` configuration, first tests |
 | 1.4 | `docker-compose.yml` for PostgreSQL, Qdrant and Redis; `.env.example`; compose targets |
 | 1.5 | GitHub Actions workflow running the same `make` targets developers run |
+| 1.6 | Ten architecture decision records in [`docs/adr/`](docs/adr/) |
+
+Phase 1 is complete. Phase 2 — the domain types in `core/` — is next.
 
 ---
 
@@ -229,4 +232,6 @@ phase that first imports them.
 - **Typed errors,** rooted per module. Never a bare `Exception`.
 - **Structured logging** correlated by `run_id`. Never `print`.
 - **Small commits,** present tense, imperative, one logical change each.
+- **Decisions are recorded** as ADRs in [`docs/adr/`](docs/adr/) when they are made, each
+  with the observation that would prove it wrong.
 - **This README tracks reality** and is updated with every commit.
