@@ -103,6 +103,24 @@ Dependencies point downward only. These rules are executable — `make arch` run
 | `sdk` | Thin async client |
 | `eval` | Deterministic harness: seed questions, cassettes, quality metrics |
 
+### Rules every domain type obeys
+
+Established in `core/` and inherited by everything above it:
+
+- **Nothing is mutated.** Domain models are frozen and closed to unexpected fields; a
+  change produces a new object. Collections are tuples, because freezing an attribute
+  does not freeze a list behind it.
+- **No timestamp is naive.** An aware value at any offset is normalised to UTC; a naive
+  one is rejected, because assuming it is local and assuming it is UTC are both wrong
+  somewhere and neither announces itself.
+- **No amount of money is a float.** Amounts are integer nanodollars behind a `Money`
+  type, so a per-token price of three millionths of a dollar is exact and adding dollars
+  to token counts fails to typecheck.
+- **No identifier is interchangeable.** Each is a distinct type to the checker and a
+  UUIDv7 at runtime, minted by the application before anything is written.
+- **No exception escapes the hierarchy.** Everything descends from `ResearchmindError`,
+  so `except Exception` never has to appear.
+
 ---
 
 ## Stack
@@ -124,7 +142,7 @@ not what is intended.
 | Phase | Scope | State |
 | --- | --- | --- |
 | 1 | Repository skeleton, tooling, CI, dev compose | **done** |
-| 2 | Domain types with property-based tests | — |
+| 2 | Domain types with property-based tests | in progress |
 | 3 | Provider interface, cost accounting, structured output | — |
 | 4 | Budget enforcer, three scopes | — |
 | 5 | Tool interface, `web_search`, `web_fetch` | — |
@@ -156,8 +174,9 @@ something to run.
 | 1.5 | GitHub Actions workflow running the same `make` targets developers run |
 | 1.6 | Ten architecture decision records in [`docs/adr/`](docs/adr/) |
 | 1.7 | ADR-0011: the modular monolith and the layering its contracts enforce |
+| 2.1 | Domain foundations: `DomainModel`, identifiers, UTC time, `Money`, `Confidence`, error root |
 
-Phase 1 is complete. Phase 2 — the domain types in `core/` — is next.
+Phase 1 is complete. Phase 2 — the domain types in `core/` — is under way.
 
 ---
 
