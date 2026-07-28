@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Generated, but deliberately still diffable: dependency upgrades are reviewed
+# by reading the lock diff.
+uv.lock linguist-generated=true

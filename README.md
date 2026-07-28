@@ -135,13 +135,36 @@ not what is intended.
 | 16 | Evaluation harness, 20 seed questions | — |
 | 17 | Observability, benchmarks, ADRs | — |
 
-**Nothing is runnable yet.** Package boundaries exist; behaviour does not. When there is
-something to run, this section will say how.
+**No agent behaviour exists yet.** Package boundaries and a locked environment exist;
+what runs inside them does not. This section will say how to run things once there is
+something to run.
 
-### Increment 1.1 — done
+### Increments delivered
 
-Package tree with boundary docstrings, root configuration files, this README.
-Requires Python 3.12, `uv` and Docker for the phases that follow.
+| # | What landed |
+| --- | --- |
+| 1.1 | Package tree with boundary docstrings, root configuration files, this README |
+| 1.2 | `pyproject.toml` with exact pins, `uv.lock` (98 packages), `Makefile`, `.gitattributes` |
+
+---
+
+## Working on it
+
+Requires **Python 3.12**, **[uv](https://docs.astral.sh/uv/)** and **Docker**.
+
+```bash
+make install   # uv sync --all-groups                    ✅ works
+make lint      # ruff check + format check               ✅ works
+make types     # mypy --strict                           ✅ works
+make arch      # import-linter: dependency layering      ⏳ needs its config (1.3)
+make test      # unit tests                              ⏳ needs a first test (1.3)
+make check     # all of the above
+```
+
+Dependency versions are pinned exactly in `pyproject.toml` and resolved in `uv.lock`.
+Both are committed: an upgrade is an explicit edit reviewed as a lock diff, never a
+silent drift. Leaf libraries that constrain nothing else in the graph are added in the
+phase that first imports them.
 
 ---
 

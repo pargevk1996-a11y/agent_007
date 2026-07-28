@@ -1,0 +1,65 @@
+[project]
+name = "researchmind"
+version = "0.1.0"
+description = "A research agent that answers open-ended questions with a report you can check."
+readme = "README.md"
+requires-python = "==3.12.*"
+
+# Exact pins on purpose: uv.lock fixes the resolved graph, and `==` here makes every
+# upgrade an explicit, reviewable edit rather than a silent `uv lock --upgrade` drift.
+#
+# Leaf dependencies that constrain nothing else in the graph are declared in the phase
+# that first imports them: trafilatura and pypdf (phase 5, 12), tree-sitter (phase 12),
+# vcrpy (phase 5). Everything below participates in version resolution, so it is
+# declared now to surface conflicts while they are still cheap to fix.
+dependencies = [
+  # typed contracts
+  "pydantic==2.13.4",
+  "pydantic-settings==2.14.2",
+  # llm providers and structured output
+  "anthropic==0.120.1",
+  "openai==2.49.0",
+  "instructor==1.15.4",
+  # data services
+  "asyncpg==0.31.0",
+  "redis==8.0.1",
+  "qdrant-client==1.18.0",
+  # http and control plane
+  "httpx==0.28.1",
+  "fastapi==0.140.13",
+  "uvicorn[standard]==0.51.0",
+  "sse-starlette==3.4.6",
+  # observability
+  "structlog==26.1.0",
+  "opentelemetry-api==1.44.0",
+  "opentelemetry-sdk==1.44.0",
+  "opentelemetry-instrumentation-fastapi==0.65b0",
+  "opentelemetry-instrumentation-httpx==0.65b0",
+  "opentelemetry-instrumentation-asyncpg==0.65b0",
+  # identifiers: UUIDv7 until it lands in the stdlib in python 3.14
+  "uuid-utils==0.17.0",
+  # entrypoints for the worker and the migration runner
+  "typer==0.27.0",
+]
+
+[dependency-groups]
+dev = [
+  "mypy==2.3.0",
+  "ruff==0.16.0",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "pytest-cov==7.1.0",
+  "hypothesis==6.163.0",
+  "testcontainers==4.15.0",
+  "respx==0.23.1",
+  "import-linter==2.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Flat layout: the package sits at the repository root, so the backend is told
+# explicitly rather than left to guess.
+[tool.hatch.build.targets.wheel]
+packages = ["researchmind"]
