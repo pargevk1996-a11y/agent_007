@@ -153,6 +153,7 @@ something to run.
 | 1.2 | `pyproject.toml` with exact pins, `uv.lock` (98 packages), `Makefile`, `.gitattributes` |
 | 1.3 | `ruff` / `mypy --strict` / `import-linter` / `pytest` configuration, first tests |
 | 1.4 | `docker-compose.yml` for PostgreSQL, Qdrant and Redis; `.env.example`; compose targets |
+| 1.5 | GitHub Actions workflow running the same `make` targets developers run |
 
 ---
 
@@ -198,6 +199,18 @@ Three choices in that file are load-bearing rather than incidental:
   missed from there. The configuration states that rather than hiding it.
 - **All ports are published on `127.0.0.1`** and are overridable, because a developer
   machine often already has something on 5432.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs one matrix leg per `make` target — `lint`, `types`,
+`arch`, `test` — plus a compose validation. CI invokes the same targets a developer
+invokes, so the two cannot drift apart, and a failure names itself: a broken layering
+contract shows up as `check (arch)`.
+
+Environments are installed with `uv sync --locked`, which refuses to update `uv.lock`.
+A `pyproject.toml` edited without relocking fails in CI instead of drifting into `main`.
+Actions are pinned by commit SHA rather than by tag, so a moved tag cannot change what
+runs.
 
 Dependency versions are pinned exactly in `pyproject.toml` and resolved in `uv.lock`.
 Both are committed: an upgrade is an explicit edit reviewed as a lock diff, never a

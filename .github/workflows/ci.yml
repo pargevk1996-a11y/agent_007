@@ -1,0 +1,56 @@
+name: CI
+
+# Pushes are only built on main: a branch with an open pull request would otherwise be
+# built twice, once for the push and once for the pull_request event.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Superseded runs on a branch are cancelled; runs on main never are.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # One matrix leg per make target, so the failing signal names itself: a broken
+  # architecture contract reads as "check (arch)", not as a generic red cross.
+  # CI runs exactly the targets a developer runs locally, so the two cannot drift.
+  check:
+    name: check (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [lint, types, arch, test]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      # --locked refuses to touch uv.lock, so a pyproject.toml edited without
+      # relocking fails here rather than drifting silently into main.
+      - name: Install the locked environment
+        run: uv sync --all-groups --locked
+
+      - name: make ${{ matrix.target }}
+        run: make ${{ matrix.target }}
+
+  # The only guard the compose file has until something actually consumes it.
+  compose:
+    name: compose config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
