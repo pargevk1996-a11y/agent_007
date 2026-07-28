@@ -152,6 +152,7 @@ something to run.
 | 1.1 | Package tree with boundary docstrings, root configuration files, this README |
 | 1.2 | `pyproject.toml` with exact pins, `uv.lock` (98 packages), `Makefile`, `.gitattributes` |
 | 1.3 | `ruff` / `mypy --strict` / `import-linter` / `pytest` configuration, first tests |
+| 1.4 | `docker-compose.yml` for PostgreSQL, Qdrant and Redis; `.env.example`; compose targets |
 
 ---
 
@@ -169,6 +170,34 @@ make check     # lint + types + arch + test
 ```
 
 `make check` is green.
+
+### Local data services
+
+```bash
+cp .env.example .env   # optional: the compose defaults already match it
+make up                # starts the three services and waits for them to be healthy
+make ps
+make logs
+make down              # stops them, keeps the data
+make reset CONFIRM=yes # stops them and deletes the volumes
+```
+
+| Service | Image | Address | Holds |
+| --- | --- | --- | --- |
+| PostgreSQL | `postgres:16.14-bookworm` | `127.0.0.1:5432` | Run state, event log, memory, cost accounting |
+| Qdrant | `qdrant/qdrant:v1.18.3` | `127.0.0.1:6333` / `:6334` | Embedded facts for cross-sub-question recall |
+| Redis | `redis:8.6.5-alpine` | `127.0.0.1:6379` | The hot tail of the event stream — nothing durable |
+
+Three choices in that file are load-bearing rather than incidental:
+
+- **PostgreSQL uses `C.UTF-8` collation.** Byte order is deterministic, survives a glibc
+  upgrade underneath a live index, and lets `LIKE 'prefix%'` use a b-tree. Linguistic
+  ordering is requested explicitly with `COLLATE` where it is actually wanted.
+- **Redis has no volume and no persistence.** It carries the hot tail of the event
+  stream; PostgreSQL is the source of truth and a reconnecting client re-reads what it
+  missed from there. The configuration states that rather than hiding it.
+- **All ports are published on `127.0.0.1`** and are overridable, because a developer
+  machine often already has something on 5432.
 
 Dependency versions are pinned exactly in `pyproject.toml` and resolved in `uv.lock`.
 Both are committed: an upgrade is an explicit edit reviewed as a lock diff, never a
