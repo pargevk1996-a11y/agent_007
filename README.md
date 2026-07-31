@@ -176,6 +176,7 @@ something to run.
 | 1.7 | ADR-0011: the modular monolith and the layering its contracts enforce |
 | 2.1 | Domain foundations: `DomainModel`, identifiers, UTC time, `Money`, `Confidence`, error root |
 | 2.2 | The planning contract: `ResearchQuestion`, `SubQuestion`, `Plan` — immutable revisions and a validated dependency DAG |
+| 2.3 | The evidence types: `Source` pinned to a digest and a retrieval instant, `Fact` that cannot exist without its source, quote and confidence |
 
 Phase 1 is complete. Phase 2 — the domain types in `core/` — is under way.
 
