@@ -177,6 +177,7 @@ something to run.
 | 2.1 | Domain foundations: `DomainModel`, identifiers, UTC time, `Money`, `Confidence`, error root |
 | 2.2 | The planning contract: `ResearchQuestion`, `SubQuestion`, `Plan` — immutable revisions and a validated dependency DAG |
 | 2.3 | The evidence types: `Source` pinned to a digest and a retrieval instant, `Fact` that cannot exist without its source, quote and confidence |
+| 2.4 | The report: `Verdict` and `Review` with the obligation to quote, `Claim` that is cited or explicitly unverified, `Report` with referential integrity across its parts |
 
 Phase 1 is complete. Phase 2 — the domain types in `core/` — is under way.
 
