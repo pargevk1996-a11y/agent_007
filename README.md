@@ -175,6 +175,7 @@ something to run.
 | 1.6 | Ten architecture decision records in [`docs/adr/`](docs/adr/) |
 | 1.7 | ADR-0011: the modular monolith and the layering its contracts enforce |
 | 2.1 | Domain foundations: `DomainModel`, identifiers, UTC time, `Money`, `Confidence`, error root |
+| 2.2 | The planning contract: `ResearchQuestion`, `SubQuestion`, `Plan` — immutable revisions and a validated dependency DAG |
 
 Phase 1 is complete. Phase 2 — the domain types in `core/` — is under way.
 
