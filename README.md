@@ -142,7 +142,7 @@ not what is intended.
 | Phase | Scope | State |
 | --- | --- | --- |
 | 1 | Repository skeleton, tooling, CI, dev compose | **done** |
-| 2 | Domain types with property-based tests | in progress |
+| 2 | Domain types with property-based tests | **done** |
 | 3 | Provider interface, cost accounting, structured output | — |
 | 4 | Budget enforcer, three scopes | — |
 | 5 | Tool interface, `web_search`, `web_fetch` | — |
@@ -178,8 +178,11 @@ something to run.
 | 2.2 | The planning contract: `ResearchQuestion`, `SubQuestion`, `Plan` — immutable revisions and a validated dependency DAG |
 | 2.3 | The evidence types: `Source` pinned to a digest and a retrieval instant, `Fact` that cannot exist without its source, quote and confidence |
 | 2.4 | The report: `Verdict` and `Review` with the obligation to quote, `Claim` that is cited or explicitly unverified, `Report` with referential integrity across its parts |
+| 2.5 | The accounting types: `TokenUsage` with cached tokens counted apart, `Cost` recorded against a price list version, `Budget` at the three scopes |
 
-Phase 1 is complete. Phase 2 — the domain types in `core/` — is under way.
+Phases 1 and 2 are complete: the domain types in `core/` exist, with their invariants
+enforced at construction and covered by property-based tests. Phase 3 — the provider
+interface, cost accounting and structured output — is next.
 
 ---
 
