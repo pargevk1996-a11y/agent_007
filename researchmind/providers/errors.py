@@ -11,6 +11,10 @@ worth retrying and a rejected key is not, and neither fact depends on who is ask
 
 The split is by *what to do about it*, not by HTTP status. Two providers return different
 codes for the same condition, and one of them will change its mind in a minor version.
+
+One member of the tree is ours rather than the vendor's — ``UnknownModelPriceError``,
+raised while accounting for a call that did succeed. It is here so that code guarding a
+provider call with ``except ProviderError`` catches everything that call can raise.
 """
 
 from __future__ import annotations
@@ -56,6 +60,25 @@ class ProviderResponseError(ProviderError):
     Distinct from a refusal, because the failure is on the way back. Whether a retry helps
     depends on why, so this does not claim it does.
     """
+
+
+class UnknownModelPriceError(ProviderError):
+    """The configured price list does not price the model that served a call.
+
+    Ours rather than the vendor's, and therefore not retryable: the same call priced
+    against the same list fails the same way. It lives in the provider subtree even so,
+    because it is raised while accounting for a provider call, and a caller that guards a
+    call with ``except ProviderError`` should not have a second root escaping past it.
+    """
+
+    def __init__(self, *, provider: str, model: str, price_version: str) -> None:
+        """Record which model went unpriced, and which price list failed to price it."""
+        super().__init__(
+            f"price list {price_version!r} does not price model {model!r} from {provider!r}",
+            provider=provider,
+        )
+        self.model = model
+        self.price_version = price_version
 
 
 class ProviderRateLimitError(ProviderError):

@@ -131,8 +131,9 @@ class CompletionResult(DomainModel):
     ``text`` may be empty. A model that stops at once has produced an empty completion,
     and requiring content here would only push an adapter into inventing some.
 
-    There is no cost. Cost is computed from ``usage`` against a versioned price list, which
-    is the next increment; deriving it here would put the price list in the wrong place.
+    There is no cost. Cost is computed from ``usage`` against a versioned price list, in
+    ``researchmind.providers.pricing``; deriving it here would put the price list in the
+    wrong place and leave the result unable to say which version of it was used.
     """
 
     call_id: CallId

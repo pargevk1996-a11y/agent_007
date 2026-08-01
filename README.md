@@ -180,10 +180,12 @@ something to run.
 | 2.4 | The report: `Verdict` and `Review` with the obligation to quote, `Claim` that is cited or explicitly unverified, `Report` with referential integrity across its parts |
 | 2.5 | The accounting types: `TokenUsage` with cached tokens counted apart, `Cost` recorded against a price list version, `Budget` at the three scopes |
 | 3.1 | The provider contract: `CompletionRequest` / `CompletionResult`, the `LLMProvider` protocol with its declared structured-output mode, and the provider failure taxonomy |
+| 3.2 | Pricing: exact per-token prices, a versioned `PriceList` that is the only thing able to build a `Cost`, and ADR-0004's reservation bound |
 
 Phases 1 and 2 are complete: the domain types in `core/` exist, with their invariants
-enforced at construction and covered by property-based tests. Phase 3 — the provider
-interface, cost accounting and structured output — is next.
+enforced at construction and covered by property-based tests. Phase 3 is under way — the
+provider interface and cost accounting exist; the vendor adapters, structured output and
+the retry policy derived from `structured_output_mode` do not.
 
 ---
 
