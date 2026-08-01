@@ -75,11 +75,19 @@ class StopReason(Enum):
     ``MAX_TOKENS`` earns its place in the type. With ``max_tokens`` clamped to what the
     budget affords (ADR-0004), truncation stops being an edge case, and a truncated answer
     is a silent quality failure unless the caller is made to see it.
+
+    ``REFUSAL`` and ``CONTEXT_WINDOW_EXCEEDED`` are outcomes, not failures: the call
+    succeeded, was billed, and produced no usable answer. Modelling them as errors would
+    lose the usage report that has to be committed against the budget either way. Both are
+    reachable here rather than theoretical — this system sends arbitrary source excerpts to
+    a model that runs safety classifiers, and it sends long documents to a bounded context.
     """
 
     END_TURN = "end_turn"
     MAX_TOKENS = "max_tokens"
     STOP_SEQUENCE = "stop_sequence"
+    REFUSAL = "refusal"
+    CONTEXT_WINDOW_EXCEEDED = "context_window_exceeded"
 
     def __str__(self) -> str:
         """Render as the stored label, so logs read ``max_tokens``."""

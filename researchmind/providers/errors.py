@@ -4,7 +4,7 @@ The root of the project's error tree promises that "a provider error carries the
 and the status". This module keeps that promise. A caller catching ``ProviderError`` knows
 which vendor failed and what it said, without parsing a message.
 
-The taxonomy exists to answer one question the retry policy of phase 3.4 will ask
+The taxonomy exists to answer one question the retry policy of a later increment will ask
 constantly: is trying again a reasonable thing to do? That answer belongs here, on the
 type, and not in a table somewhere else that has to be kept in step with it. A timeout is
 worth retrying and a rejected key is not, and neither fact depends on who is asking.

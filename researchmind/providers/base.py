@@ -6,7 +6,7 @@ choice, and insists that the one thing vendors genuinely differ about stays visi
 native tool use or a JSON schema mode; vLLM produces valid schemas with guided decoding and
 otherwise merely tries. An interface that hid the difference would make the weakest case
 invisible, so each adapter declares which guarantee it actually offers and the retry policy
-of the next increment is derived from that declaration.
+of a later increment is derived from that declaration.
 
 This is a ``Protocol`` rather than an abstract base class. An adapter conforms by having
 the right shape, not by inheriting, which keeps the dependency pointing one way and makes
