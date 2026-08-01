@@ -19,7 +19,7 @@ provider call with ``except ProviderError`` catches everything that call can rai
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import ClassVar
 
 from researchmind.core.errors import ResearchmindError
@@ -79,6 +79,24 @@ class UnknownModelPriceError(ProviderError):
         )
         self.model = model
         self.price_version = price_version
+
+
+class UnpricedInstantError(ProviderError):
+    """No price list was in effect when the call happened.
+
+    Raised when an instant falls before the earliest prices we hold. Returning the oldest
+    list instead would price a call at rates that had not been announced when it was made,
+    and would do so silently — the cost row would carry a version that disagrees with its
+    own timestamp, which is precisely what ``price_version`` exists to make checkable.
+    """
+
+    def __init__(self, *, provider: str, instant: datetime) -> None:
+        """Record which provider, and the instant nothing covers."""
+        super().__init__(
+            f"no {provider!r} price list was in effect at {instant.isoformat()}",
+            provider=provider,
+        )
+        self.instant = instant
 
 
 class ProviderRateLimitError(ProviderError):

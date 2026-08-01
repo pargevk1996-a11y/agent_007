@@ -182,12 +182,14 @@ something to run.
 | 3.1 | The provider contract: `CompletionRequest` / `CompletionResult`, the `LLMProvider` protocol with its declared structured-output mode, and the provider failure taxonomy |
 | 3.2 | Pricing: exact per-token prices, a versioned `PriceList` that is the only thing able to build a `Cost`, and ADR-0004's reservation bound |
 | 3.3 | The Anthropic adapter: request and usage mapping, the vendor failure taxonomy translated, and every lenient parse of the SDK turned into a typed error |
+| 3.4 | The Anthropic prices, as two dated lists because an introductory rate expires between them, and the `PriceListHistory` that picks the one in effect |
 
 Phases 1 and 2 are complete: the domain types in `core/` exist, with their invariants
 enforced at construction and covered by property-based tests. Phase 3 is under way — the
-provider interface, cost accounting and the Anthropic adapter exist; the OpenAI and vLLM
-adapters, structured output and the retry policy derived from `structured_output_mode` do
-not. No API key is read anywhere yet: the adapter takes a client, and nothing builds one.
+provider interface, cost accounting, the Anthropic adapter and its prices exist; the OpenAI
+and vLLM adapters, structured output and the retry policy derived from
+`structured_output_mode` do not. No API key is read anywhere yet: the adapter takes a
+client, and nothing builds one.
 
 ---
 

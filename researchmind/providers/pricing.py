@@ -25,16 +25,15 @@ into ``input_tokens``, where they are billed at the ordinary rate — close to r
 wrong in the safe direction. Splitting the field is a change to make when an adapter can
 demonstrate it matters, not before.
 
-Selecting between price lists by date is not here. A list carries ``effective_from`` so
-that a stored cost can be traced back to a set of prices that was current when it was
-incurred, but one call must resolve to exactly one list — otherwise ``price_version`` no
-longer identifies what was charged. A resolver over several lists belongs to the increment
-that first has more than one.
+One call resolves to exactly one list, or ``price_version`` stops identifying what was
+charged. Choosing *which* list is the job of ``PriceListHistory``, which arrived with the
+second list rather than being invented alongside the first.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
+from itertools import pairwise
 from typing import Annotated, Final, Self
 
 from pydantic import AfterValidator, Field, model_validator
@@ -46,7 +45,7 @@ from researchmind.core.ids import RunId, SubQuestionId
 from researchmind.core.money import Money
 from researchmind.core.tokens import TokenUsage
 from researchmind.providers.completion import MAX_MODEL_NAME_LENGTH, CompletionResult
-from researchmind.providers.errors import UnknownModelPriceError
+from researchmind.providers.errors import UnknownModelPriceError, UnpricedInstantError
 
 TOKENS_PER_MTOK: Final = 1_000_000
 """The unit vendors quote prices in."""
@@ -217,6 +216,59 @@ class PriceList(DomainModel):
             price_version=self.version,
             incurred_at=incurred_at,
         )
+
+
+class PriceListHistory(DomainModel):
+    """One provider's price lists in the order they took effect.
+
+    ADR-0004 asks for prices with ``effective_from`` dates; a single list carries the date
+    but cannot answer what was current at a given instant. This type answers that, and
+    exists now because there is finally more than one list to choose between: a vendor
+    running an introductory rate with an announced end date is exactly the case where
+    holding one set of numbers means being wrong on one side of it.
+
+    The invariants are enforced at construction rather than checked at lookup, because a
+    history assembled wrongly is wrong for every call that follows, not for one of them.
+    """
+
+    provider: str = Field(min_length=1, max_length=MAX_PROVIDER_NAME_LENGTH)
+    lists: tuple[PriceList, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _require_an_ordered_history_of_one_provider(self) -> Self:
+        """Check that the lists run forward in time, name themselves apart, and are ours."""
+        versions: set[str] = set()
+        for earlier, later in pairwise(self.lists):
+            if later.effective_from <= earlier.effective_from:
+                msg = (
+                    f"price lists must run forward in time; {later.version} takes effect "
+                    f"at or before {earlier.version}"
+                )
+                raise ValueError(msg)
+        for prices in self.lists:
+            if prices.version in versions:
+                msg = f"two price lists share the version {prices.version}"
+                raise ValueError(msg)
+            versions.add(prices.version)
+            for price in prices.prices:
+                if price.provider != self.provider:
+                    msg = (
+                        f"{prices.version} prices {price.model} from {price.provider}, "
+                        f"which does not belong in a {self.provider} history"
+                    )
+                    raise ValueError(msg)
+        return self
+
+    def at(self, instant: UtcDatetime) -> PriceList:
+        """Return the list that was in effect at an instant.
+
+        Raises:
+            UnpricedInstantError: if the instant precedes every list we hold.
+        """
+        for prices in reversed(self.lists):
+            if prices.effective_from <= instant:
+                return prices
+        raise UnpricedInstantError(provider=self.provider, instant=instant)
 
 
 def _per_token(dollars_per_mtok: Decimal | int | str) -> Money:
