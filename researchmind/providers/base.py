@@ -15,9 +15,10 @@ and not at runtime: the protocol is deliberately not ``runtime_checkable``, beca
 ``isinstance`` check over a protocol tests for the presence of attributes and would report
 a provider with a wrongly typed ``complete`` as conforming.
 
-``complete_structured`` is not here yet. It arrives with the generic request and result
-types and the retry policy that gives it meaning; declaring it now would put a method in
-the contract that no adapter could implement usefully.
+``complete_structured`` is the second method, and it makes one attempt. Retrying is not
+part of it: what to do about a failure is decided by the taxonomy's ``retryable`` and by
+``structured_output_mode``, and that decision applies to both methods equally. Building it
+into one of them would bury a policy that belongs above both.
 """
 
 from __future__ import annotations
@@ -25,7 +26,9 @@ from __future__ import annotations
 from enum import Enum
 from typing import Protocol
 
+from researchmind.core.base import DomainModel
 from researchmind.providers.completion import CompletionRequest, CompletionResult
+from researchmind.providers.structured import StructuredRequest, StructuredResult
 
 
 class StructuredOutputMode(Enum):
@@ -65,5 +68,21 @@ class LLMProvider(Protocol):
         Raises:
             ProviderError: for any failure attributable to the provider, classified by
                 the taxonomy in ``researchmind.providers.errors``.
+        """
+        ...
+
+    async def complete_structured[T: DomainModel](
+        self, request: StructuredRequest[T]
+    ) -> StructuredResult[T]:
+        """Run one completion that must answer with an instance of the request's schema.
+
+        Output that does not validate is reported, not raised: the result carries no value
+        and the usage that has to be paid for either way. How hard an adapter tries to
+        prevent that is what ``structured_output_mode`` declares.
+
+        Raises:
+            ProviderError: for any failure attributable to the provider, classified by
+                the taxonomy in ``researchmind.providers.errors``. A model that answered
+                badly is not one of them.
         """
         ...

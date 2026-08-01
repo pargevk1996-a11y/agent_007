@@ -10,6 +10,7 @@ from datetime import timedelta
 
 import pytest
 
+from researchmind.core.base import DomainModel
 from researchmind.core.ids import new_call_id
 from researchmind.core.tokens import TokenUsage
 from researchmind.providers.base import LLMProvider, StructuredOutputMode
@@ -20,6 +21,7 @@ from researchmind.providers.completion import (
     Role,
     StopReason,
 )
+from researchmind.providers.structured import StructuredRequest, StructuredResult
 
 
 class StubProvider:
@@ -41,6 +43,19 @@ class StubProvider:
             call_id=request.call_id,
             model=request.model,
             text=f"answered: {request.messages[-1].content}",
+            stop_reason=StopReason.END_TURN,
+            usage=TokenUsage(input_tokens=10, output_tokens=5),
+            latency=timedelta(milliseconds=1),
+        )
+
+    async def complete_structured[T: DomainModel](
+        self, request: StructuredRequest[T]
+    ) -> StructuredResult[T]:
+        """Answer with nothing, which is a legitimate outcome and the easiest to stub."""
+        return StructuredResult[T](
+            call_id=request.call_id,
+            model=request.model,
+            text="{}",
             stop_reason=StopReason.END_TURN,
             usage=TokenUsage(input_tokens=10, output_tokens=5),
             latency=timedelta(milliseconds=1),
@@ -71,6 +86,30 @@ async def test_the_protocol_describes_a_call_that_actually_runs() -> None:
 
     assert result.call_id == request.call_id
     assert result.text.endswith("Which regulators published in 2025?")
+
+
+class _Finding(DomainModel):
+    """A schema a caller might ask a model to fill in."""
+
+    headline: str
+
+
+async def test_the_schema_a_caller_asks_for_is_the_type_it_gets_back() -> None:
+    # What mypy checks here is that T flows from the request to the result: `value` is a
+    # `_Finding | None` at this call site and not a bare DomainModel.
+    provider = _use(StubProvider())
+    request = StructuredRequest[_Finding](
+        call_id=new_call_id(),
+        model="claude-opus-5",
+        messages=(Message(role=Role.USER, content="Summarise the finding."),),
+        max_tokens=256,
+        output_schema=_Finding,
+    )
+
+    result = await provider.complete_structured(request)
+
+    assert result.value is None
+    assert not result.extracted
 
 
 def test_conformance_is_checked_by_types_and_not_at_runtime() -> None:

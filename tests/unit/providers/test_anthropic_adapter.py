@@ -17,7 +17,9 @@ import httpx
 import pytest
 import respx
 from anthropic import AsyncAnthropic
+from pydantic import Field
 
+from researchmind.core.base import DomainModel
 from researchmind.core.ids import new_call_id
 from researchmind.providers.anthropic_adapter import (
     MODELS_WITHOUT_TEMPERATURE,
@@ -34,6 +36,7 @@ from researchmind.providers.errors import (
     ProviderTimeoutError,
     ProviderUnavailableError,
 )
+from researchmind.providers.structured import StructuredRequest
 
 MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 
@@ -451,3 +454,187 @@ async def test_the_adapter_leaves_no_vendor_exception_uncaught() -> None:
         pytest.fail(f"a vendor exception escaped the adapter: {exc!r}")
     except ProviderUnavailableError:
         pass
+
+
+class Finding(DomainModel):
+    """An extraction target with a bound the vendor's schema will not enforce."""
+
+    headline: str = Field(min_length=1, max_length=40)
+    confident: bool
+
+
+def _structured_request(*, model: str = "claude-opus-5") -> StructuredRequest[Finding]:
+    return StructuredRequest[Finding](
+        call_id=new_call_id(),
+        model=model,
+        messages=(Message(role=Role.USER, content="Summarise the finding."),),
+        max_tokens=1024,
+        output_schema=Finding,
+    )
+
+
+def _json_body(text: str, *, stop_reason: str = "end_turn") -> dict[str, object]:
+    return _body(content=[{"type": "text", "text": text}], stop_reason=stop_reason)
+
+
+@respx.mock
+async def test_a_schema_is_sent_as_the_output_config() -> None:
+    route = respx.post(MESSAGES_URL).mock(
+        return_value=httpx.Response(200, json=_json_body('{"headline": "MiCA", "confident": true}'))
+    )
+
+    await _provider().complete_structured(_structured_request())
+
+    sent = json.loads(route.calls.last.request.content)["output_config"]["format"]
+    assert sent["type"] == "json_schema"
+    assert sent["schema"]["required"] == ["headline", "confident"]
+
+
+@respx.mock
+async def test_a_schema_forbids_the_fields_it_did_not_ask_for() -> None:
+    # The vendor requires additionalProperties: false on every object, which our domain
+    # models already imply by being closed.
+    route = respx.post(MESSAGES_URL).mock(
+        return_value=httpx.Response(200, json=_json_body('{"headline": "MiCA", "confident": true}'))
+    )
+
+    await _provider().complete_structured(_structured_request())
+
+    schema = json.loads(route.calls.last.request.content)["output_config"]["format"]["schema"]
+    assert schema["additionalProperties"] is False
+
+
+@respx.mock
+async def test_a_length_bound_reaches_the_model_as_advice_not_as_a_constraint() -> None:
+    # The dialect has no maxLength, so the SDK's transform moves it into the description.
+    # This is why an extraction can come back empty from a turn that ended normally, and
+    # pins the behaviour so a lock bump that changes it fails here rather than in a run.
+    route = respx.post(MESSAGES_URL).mock(
+        return_value=httpx.Response(200, json=_json_body('{"headline": "MiCA", "confident": true}'))
+    )
+
+    await _provider().complete_structured(_structured_request())
+
+    schema = json.loads(route.calls.last.request.content)["output_config"]["format"]["schema"]
+    headline = schema["properties"]["headline"]
+    assert "maxLength" not in headline
+    assert "maxLength: 40" in headline["description"]
+
+
+@respx.mock
+async def test_a_well_formed_answer_comes_back_as_the_type_that_was_asked_for() -> None:
+    respx.post(MESSAGES_URL).mock(
+        return_value=httpx.Response(
+            200, json=_json_body('{"headline": "MiCA applies", "confident": true}')
+        )
+    )
+
+    result = await _provider().complete_structured(_structured_request())
+
+    assert result.extracted
+    assert result.value == Finding(headline="MiCA applies", confident=True)
+    assert result.stop_reason is StopReason.END_TURN
+    assert result.usage.input_tokens == 1000
+
+
+@respx.mock
+async def test_an_answer_that_breaks_a_bound_the_schema_could_not_carry_costs_us_anyway() -> None:
+    # 60 characters where the type permits 40. The generation was never constrained, so
+    # this is a completed, billed call that produced nothing usable.
+    respx.post(MESSAGES_URL).mock(
+        return_value=httpx.Response(
+            200, json=_json_body(json.dumps({"headline": "M" * 60, "confident": True}))
+        )
+    )
+
+    result = await _provider().complete_structured(_structured_request())
+
+    assert not result.extracted
+    assert result.stop_reason is StopReason.END_TURN
+    assert result.usage.output_tokens == 50
+    assert "MMM" in result.text
+
+
+@respx.mock
+async def test_an_answer_that_is_not_the_shape_we_asked_for_is_reported_not_raised() -> None:
+    respx.post(MESSAGES_URL).mock(
+        return_value=httpx.Response(200, json=_json_body('{"headline": "MiCA"}'))
+    )
+
+    result = await _provider().complete_structured(_structured_request())
+
+    assert not result.extracted
+    assert result.usage.total == 1050
+
+
+@respx.mock
+async def test_an_answer_that_is_not_json_at_all_is_reported_not_raised() -> None:
+    respx.post(MESSAGES_URL).mock(return_value=httpx.Response(200, json=_json_body("I cannot.")))
+    result = await _provider().complete_structured(_structured_request())
+    assert not result.extracted
+    assert result.text == "I cannot."
+
+
+@pytest.mark.parametrize("reported", ["refusal", "max_tokens", "model_context_window_exceeded"])
+@respx.mock
+async def test_a_generation_that_did_not_finish_yields_no_value_and_still_reports_usage(
+    reported: str,
+) -> None:
+    # A truncated document is not parsed even when the prefix happens to be valid JSON.
+    respx.post(MESSAGES_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json=_json_body(
+                '{"headline": "MiCA applies", "confident": true}', stop_reason=reported
+            ),
+        )
+    )
+
+    result = await _provider().complete_structured(_structured_request())
+
+    assert not result.extracted
+    assert result.usage.total == 1050
+
+
+@respx.mock
+async def test_a_structured_call_fails_the_way_an_unstructured_one_does() -> None:
+    # Both methods send through the same translation, so a rate limit means the same thing
+    # whichever one asked.
+    respx.post(MESSAGES_URL).mock(
+        return_value=httpx.Response(
+            429, json=_error("rate_limit_error", "slow down"), headers={"retry-after": "3"}
+        )
+    )
+
+    with pytest.raises(ProviderRateLimitError) as caught:
+        await _provider().complete_structured(_structured_request())
+
+    assert caught.value.retry_after == timedelta(seconds=3)
+
+
+@respx.mock
+async def test_a_structured_call_refuses_a_temperature_the_model_will_not_take() -> None:
+    route = respx.post(MESSAGES_URL).mock(return_value=httpx.Response(200, json=_body()))
+
+    with pytest.raises(ProviderRequestError, match="does not accept a temperature"):
+        await _provider().complete_structured(
+            StructuredRequest[Finding](
+                call_id=new_call_id(),
+                model="claude-opus-5",
+                messages=(Message(role=Role.USER, content="Summarise it."),),
+                max_tokens=1024,
+                temperature=0.9,
+                output_schema=Finding,
+            )
+        )
+
+    assert not route.called
+
+
+@respx.mock
+async def test_an_unstructured_call_sends_no_output_config() -> None:
+    route = respx.post(MESSAGES_URL).mock(return_value=httpx.Response(200, json=_body()))
+
+    await _provider().complete(_request())
+
+    assert "output_config" not in json.loads(route.calls.last.request.content)
